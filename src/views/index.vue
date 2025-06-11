@@ -57,6 +57,19 @@ const changeDeviceCamera = () => {
 
   getLocalMediaStream();
 };
+
+// 1. 获取所有媒体设备
+const getDevices = async () => {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  // const cameras = devices.filter(d => d.kind === 'videoinput');
+  // const mics = devices.filter(d => d.kind === 'audioinput');
+  console.log(devices);
+  // 2. 使用第一个摄像头和麦克风
+  // navigator.mediaDevices.getUserMedia({
+  //   video: { deviceId: cameras[0].deviceId },
+  //   audio: { deviceId: mics[0].deviceId }
+  // });
+};
 </script>
 
 <template>
@@ -66,6 +79,8 @@ const changeDeviceCamera = () => {
     <div style="margin-top: 20px" @click="changeDeviceCamera">
       切换成{{ facingMode === "user" ? "后置" : "前置" }}摄像头
     </div>
+
+    <div @click="getDevices">asdfsadf</div>
   </div>
 </template>
 
