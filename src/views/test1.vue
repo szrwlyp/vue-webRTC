@@ -6,7 +6,6 @@
       <!-- 顶部标题栏 -->
       <header class="text-center mb-8">
         <h1 class="text-3xl font-bold mb-2">WebRTC视频通话</h1>
-        <p class="text-blue-300">类似微信视频聊天的实现，支持拖拽小窗口</p>
       </header>
 
       <!-- 主视频区域 -->
@@ -43,7 +42,7 @@
           <!-- 小窗口 - 限制在主视频区域内 -->
           <div
             ref="pipWindow"
-            class="absolute w-32 h-48 md:w-40 md:h-60 bg-black rounded-lg overflow-hidden shadow-2xl cursor-move border-2 border-blue-500"
+            class="absolute w-20 h-28 md:w-40 md:h-60 bg-black rounded-lg overflow-hidden shadow-2xl cursor-move border-2 border-blue-500"
             :style="{ left: pipPosition.x + 'px', top: pipPosition.y + 'px' }"
             @mousedown="startDrag"
             @touchstart="startDrag"
@@ -66,9 +65,9 @@
         </div>
 
         <!-- 控制按钮区域 -->
-        <div class="flex justify-center space-x-4 md:space-x-6 py-4 px-2">
+        <div class="flex justify-center gap-6 py-4 md:py-8">
           <button
-            class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-700 flex items-center justify-center hover:bg-gray-600 transition-all"
+            class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-[#2196f3] to-[#21cbf3] flex items-center justify-center md:hover:translate-y-[-5px] focus:outline-none transition-all"
             @click="toggleMic"
           >
             <i
@@ -78,7 +77,7 @@
           </button>
 
           <button
-            class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-700 flex items-center justify-center hover:bg-gray-600 transition-all"
+            class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-[#2196f3] to-[#21cbf3] flex items-center justify-center md:hover:translate-y-[-5px] transition-all"
             @click="toggleCamera"
           >
             <i
@@ -89,7 +88,7 @@
 
           <button
             v-if="callStatus === 'incoming'"
-            class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-green-500 flex items-center justify-center hover:bg-green-400 transition-all"
+            class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-[#00b09b] to-[#96c93d] flex items-center justify-center md:hover:translate-y-[-5px] transition-all"
             @click="answerCall"
           >
             <i
@@ -99,7 +98,7 @@
 
           <button
             v-else
-            class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-red-500 flex items-center justify-center hover:bg-red-400 transition-all"
+            class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-red-500 flex items-center justify-center transition-all md:hover:translate-y-[-5px]"
             @click="endCall"
           >
             <i
@@ -107,15 +106,17 @@
             ></i>
           </button>
 
-          <button
+          <!-- <button
             class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-700 flex items-center justify-center hover:bg-gray-600 transition-all"
             @click="togglePip"
           >
             <i class="fas fa-expand text-lg md:text-xl"></i>
-          </button>
+          </button> -->
         </div>
       </div>
-
+      <div class="bg-white text-black dark:bg-black dark:text-white">
+        该文本根据颜色模式而变化。
+      </div>
       <!-- 通话信息区域 -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- 通话状态信息 -->
@@ -201,7 +202,7 @@
           功能说明
         </h3>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="bg-gray-800/50 p-4 rounded-lg">
+          <div class="tes1">
             <div class="text-blue-400 text-2xl mb-2">
               <i class="fas fa-video"></i>
             </div>
@@ -304,7 +305,7 @@ const answerCall = () => {
 
 // 结束通话
 const endCall = () => {
-  callStatus.value = "ended";
+  callStatus.value = "incoming";
   callActive.value = false;
 
   // 停止计时器
@@ -487,12 +488,12 @@ video {
 }
 
 /* 动画效果 */
-button {
+/* button {
   transition: all 0.2s ease;
   transform: scale(1);
 }
 
 button:active {
   transform: scale(0.95);
-}
+} */
 </style>
