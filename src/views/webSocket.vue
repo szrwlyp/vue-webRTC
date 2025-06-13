@@ -2,7 +2,7 @@
 import { ref, onMounted } from "vue";
 import { useWebSocket } from "@/composables/webSocket";
 
-const wsUrl = "wss://your-websocket-server.com";
+const wsUrl = "wss://wf.jiumiaoda.com/ws";
 const chatMessages = ref<{ text: string; sender: string }[]>([]);
 const inputMessage = ref("");
 
@@ -31,6 +31,7 @@ on("open", () => {
 });
 
 on("message", (data: any) => {
+  console.log(data, "d消息");
   if (data.type === "chat") {
     chatMessages.value.push({
       text: data.message,
@@ -113,7 +114,7 @@ const reconnect = () => {
         </div>
       </div>
 
-      <input v-model="inputMessage" @keyup.enter="sendMessage" />
+      <input id="name" v-model="inputMessage" @keyup.enter="sendMessage" />
       <button @click="sendMessage" :disabled="!isConnected">Send</button>
     </div>
   </div>
