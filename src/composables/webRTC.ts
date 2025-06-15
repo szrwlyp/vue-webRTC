@@ -37,9 +37,17 @@ export function useWebRTC() {
     }
   };
 
-  const testRemoteVideo = () => {
-    remoteStream.value = new MediaStream();
+  const testRemoteVideo = async () => {
+    // 获取新的媒体流
+    // const stream = await navigator.mediaDevices.getUserMedia({
+    //   video: true,
+    //   audio: true,
+    // });
+    // remoteStream.value = stream;
   };
+
+  // 添加 iceCandidate 回调
+  const onIceCandidate = ref<(candidate: RTCIceCandidate) => void>();
 
   // 创建对等连接
   const createPeerConnection = () => {
@@ -49,9 +57,10 @@ export function useWebRTC() {
     }
 
     // 创建新连接
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    });
+    const pc = new RTCPeerConnection();
+    // const pc = new RTCPeerConnection({
+    //   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    // });
 
     peerConnection.value = pc;
     isCalling.value = true;
@@ -67,9 +76,11 @@ export function useWebRTC() {
 
     // 监听远程媒体流
     pc.ontrack = (event) => {
-      if (!remoteStream.value) {
-        remoteStream.value = event.streams[0];
-      }
+      console.log("监听远程媒体流", event);
+      // if (!remoteStream.value) {
+      console.log("asdfasdf");
+      remoteStream.value = event.streams[0];
+      // }
       // event.streams[0].getTracks().forEach((track) => {
       //   remoteStream.value!.addTrack(track);
       // });
@@ -80,6 +91,7 @@ export function useWebRTC() {
       if (event.candidate) {
         // 实际应用中应通过信令服务器发送候选
         console.log("ICE candidate:", event.candidate);
+        onIceCandidate.value(event.candidate);
       }
     };
 
@@ -133,8 +145,11 @@ export function useWebRTC() {
       const pc = createPeerConnection();
       isCaller.value = false;
 
+      // 收到 offer 后设置远程描述（需要包装）
+      const offerDesc = new RTCSessionDescription(offer);
+
       // 设置远程Offer
-      await pc.setRemoteDescription(offer);
+      await pc.setRemoteDescription(offerDesc);
 
       // 创建Answer
       const answer = await pc.createAnswer();
@@ -155,7 +170,9 @@ export function useWebRTC() {
     }
 
     try {
-      await peerConnection.value.setRemoteDescription(answer);
+      // 收到 answer 后设置远程描述（需要包装）
+      const answerDesc = new RTCSessionDescription(answer);
+      await peerConnection.value.setRemoteDescription(answerDesc);
       isConnected.value = true;
     } catch (err) {
       error.value = `处理应答失败: ${(err as Error).message}`;
@@ -220,5 +237,6 @@ export function useWebRTC() {
     handleICECandidate,
     endCall,
     testRemoteVideo,
+    onIceCandidate, // 暴露 ICE 候选回调
   };
 }

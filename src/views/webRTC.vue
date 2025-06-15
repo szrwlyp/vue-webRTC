@@ -1,6 +1,78 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watchEffect } from "vue";
 import { useWebRTC } from "@/composables/webRTC";
+import { useWebSocket } from "@/composables/webSocket";
+import { useRoute } from "vue-router";
+
+const route = useRoute();
+console.log(route.query.name);
+const userName = ref(route.query.name);
+
+// const wsUrl = "wss://wf.jiumiaoda.com/ws";
+// const wsUrl = `ws://127.0.0.1:8000/ws?username=${userName.value}`;
+const wsUrl = `https://c5ch87q1-8000.asse.devtunnels.ms/ws?username=${userName.value}`;
+const msgInput = ref<string>();
+// 创建 WebSocket 实例
+const {
+  isConnected,
+  connect,
+  disconnect,
+  send,
+  on,
+  reconnectAttempts,
+  latency,
+} = useWebSocket(wsUrl, {
+  reconnect: true,
+  reconnectInterval: 3000,
+  maxReconnectAttempts: 10,
+  heartbeat: true,
+  heartbeatInterval: 10000,
+  heartbeatMessage: { type: "ping" },
+  debug: true,
+});
+const historyMsg = ref<any>([]);
+// 设置事件监听
+on("open", () => {
+  console.log("WebSocket connection established");
+});
+
+on("message", (data: any) => {
+  if (data.type === "ping") return;
+
+  console.log("webSocket消息：", data);
+  try {
+    historyMsg.value.push(data);
+    console.log(historyMsg.value);
+
+    if (data.type === "video-offer") {
+      simulateIncomingCall(data.message_content);
+    }
+
+    if (data.type === "video-answer") {
+      simulateAnswer(data.message_content);
+    }
+
+    // 添加 ICE 候选处理
+    if (data.type === "ice-candidate") {
+      console.log("收到 ICE 候选", data.message_content);
+      handleICECandidate(data.message_content);
+    }
+  } catch (err) {
+    console.log("webSocket消息报错:", err);
+  }
+});
+
+on("close", (event: any) => {
+  console.log("Connection closed", event.code, event.reason);
+});
+
+on("error", (error: any) => {
+  console.error("WebSocket error:", error);
+});
+
+on("reconnect", (attempt: any) => {
+  console.log(`Reconnection attempt ${attempt}`);
+});
 
 // 创建 WebRTC 实例
 const {
@@ -8,86 +80,147 @@ const {
   remoteStream,
   isCalling,
   isCaller,
-  isConnected,
+  isConnected: isConnectedWebRTC,
   error,
   initLocalStream,
   startCall,
   acceptCall,
   handleAnswer,
   handleICECandidate,
+  onIceCandidate, // 接收 ICE 候选回调
   endCall,
   testRemoteVideo,
 } = useWebRTC();
+
+// 设置 ICE 候选回调
+onIceCandidate.value = (candidate) => {
+  console.log("页面ICE 候选回调", candidate);
+  // 发送 ICE 候选给对端
+  sendWebSocketMsg({
+    type: "ice-candidate",
+    message_content: candidate,
+  });
+};
 
 // 视频元素引用
 const localVideo = ref<HTMLVideoElement | null>(null);
 const remoteVideo = ref<HTMLVideoElement | null>(null);
 
-// 初始化本地媒体流
-onMounted(async () => {
-  try {
-    await initLocalStream();
-    if (localVideo.value && localStream.value) {
-      localVideo.value.srcObject = localStream.value;
-    }
-  } catch (err) {
-    console.error("初始化失败:", err);
+watchEffect(() => {
+  console.log("监听本地视频", localVideo.value, localStream.value);
+  if (localVideo.value && localStream.value) {
+    localVideo.value.srcObject = localStream.value;
   }
 });
+watchEffect(() => {
+  console.log("监听远程视频", remoteVideo.value, remoteStream.value);
+  if (remoteVideo.value && remoteStream.value) {
+    remoteVideo.value.srcObject = remoteStream.value;
+  }
+});
+// 初始化本地媒体流
+onMounted(async () => {
+  connect();
+  // try {
+  //   await initLocalStream();
+  //   if (localVideo.value && localStream.value) {
+  //     localVideo.value.srcObject = localStream.value;
+  //   }
+  // } catch (err) {
+  //   console.error("初始化失败:", err);
+  // }
+});
+
+const sendWebSocketMsg = (msg: any) => {
+  send(
+    JSON.stringify({
+      ...msg,
+      name: userName.value,
+      target_user: userName.value === "lanyuping" ? "lisi" : "lanyuping",
+    })
+  );
+};
 
 // 发起呼叫
 const initiateCall = async () => {
   try {
+    await initLocalStream();
+    // if (localVideo.value && localStream.value) {
+    //   localVideo.value.srcObject = localStream.value;
+    // }
     const offer = await startCall();
     // 实际应用中：通过信令服务器发送offer
     console.log("发起呼叫，发送offer:", offer);
+
+    let msg = {
+      type: "video-offer",
+      message_content: offer,
+    };
+    sendWebSocketMsg(msg);
   } catch (err) {
     console.error("呼叫失败:", err);
   }
 };
 
 // 模拟接收呼叫
-const simulateIncomingCall = async () => {
+const simulateIncomingCall = async (fakeOffer: any) => {
   // 在实际应用中，这会从信令服务器接收
-  const fakeOffer: RTCSessionDescriptionInit = {
-    type: "offer",
-    sdp: "v=0\r\no=- 123456789 2 IN IP4 127.0.0.1\r\n...",
-  };
+  // const fakeOffer: RTCSessionDescriptionInit = {
+  //   type: "offer",
+  //   sdp: "v=0\r\no=- 123456789 2 IN IP4 127.0.0.1\r\n...",
+  // };
 
   try {
     const answer = await acceptCall(fakeOffer);
     // 实际应用中：通过信令服务器发送answer
     console.log("接受呼叫，发送answer:", answer);
+    let msg = {
+      type: "video-answer",
+      message_content: answer,
+    };
+    sendWebSocketMsg(msg);
   } catch (err) {
     console.error("接受呼叫失败:", err);
   }
 };
 
 // 模拟接收应答
-const simulateAnswer = async () => {
+const simulateAnswer = async (fakeAnswer: any) => {
   // 在实际应用中，这会从信令服务器接收
-  const fakeAnswer: RTCSessionDescriptionInit = {
-    type: "answer",
-    sdp: "v=0\r\no=- 987654321 2 IN IP4 127.0.0.1\r\n...",
-  };
+  // const fakeAnswer: RTCSessionDescriptionInit = {
+  //   type: "answer",
+  //   sdp: "v=0\r\no=- 987654321 2 IN IP4 127.0.0.1\r\n...",
+  // };
 
   try {
+    console.log("开始处理应答", fakeAnswer);
     await handleAnswer(fakeAnswer);
     console.log("处理应答成功");
   } catch (err) {
     console.error("处理应答失败:", err);
   }
 };
+
+const sendInputContent = () => {
+  let msg = {
+    type: "test",
+    message_content: msgInput.value,
+  };
+  sendWebSocketMsg(msg);
+
+  msgInput.value = "";
+};
 </script>
 
 <template>
   <div class="simple-webrtc">
+    <h2 class="text-center text-xl">当前用户：{{ userName }}</h2>
     <div class="status-bar">
       <div class="status">
         <span v-if="isCalling">
           {{ isCaller ? "呼叫中..." : "接听中..." }}
         </span>
-        <span v-if="isConnected" class="connected">已连接</span>
+        <span v-if="isConnectedWebRTC" class="connected">已连接</span>
         <span v-if="error" class="error">{{ error }}</span>
       </div>
     </div>
@@ -104,15 +237,8 @@ const simulateAnswer = async () => {
         <div class="video-label">本地视频</div>
       </div>
 
-      <div class="video-wrapper" v-if="remoteStream">
-        <video
-          ref="remoteVideo"
-          autoplay
-          playsinline
-          class="remote-video"
-          v-if="remoteStream"
-          :srcObject="remoteStream"
-        />
+      <div class="video-wrapper">
+        <video ref="remoteVideo" autoplay playsinline class="remote-video" />
         <div class="video-label">远程视频</div>
       </div>
     </div>
@@ -132,7 +258,7 @@ const simulateAnswer = async () => {
 
       <button
         @click="simulateAnswer"
-        :disabled="!isCalling || isCaller || isConnected"
+        :disabled="!isCalling || isCaller || isConnectedWebRTC"
         class="answer-button"
       >
         模拟应答
@@ -146,6 +272,13 @@ const simulateAnswer = async () => {
         开启远程视频
       </button>
     </div>
+
+    <div>
+      <input type="text" id="msg" v-model="msgInput" />
+      <button @click="sendInputContent" class="answer-button">发送消息</button>
+    </div>
+
+    <div v-for="item of historyMsg">{{ item }}</div>
   </div>
 </template>
 

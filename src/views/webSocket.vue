@@ -32,6 +32,13 @@ on("open", () => {
 
 on("message", (data: any) => {
   console.log(data, "d消息");
+
+  const jsonStr = data.match(/\{.*\}/s)?.[0];
+
+  if (jsonStr) {
+    console.log(JSON.parse(jsonStr));
+  }
+
   if (data.type === "chat") {
     chatMessages.value.push({
       text: data.message,
@@ -54,7 +61,7 @@ on("reconnect", (attempt: any) => {
 
 // 初始化连接
 onMounted(() => {
-  connect();
+  // connect();
 });
 
 // 发送聊天消息
@@ -81,7 +88,7 @@ const closeConnection = () => {
 
 // 重新连接
 const reconnect = () => {
-  connect();
+  // connect();
 };
 </script>
 
