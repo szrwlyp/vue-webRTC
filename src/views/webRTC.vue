@@ -8,7 +8,6 @@ const route = useRoute();
 console.log(route.query.name);
 const userName = ref(route.query.name);
 
-// const wsUrl = "wss://wf.jiumiaoda.com/ws";
 // const wsUrl = `ws://127.0.0.1:8000/ws?username=${userName.value}`;
 const wsUrl = `https://c5ch87q1-8000.asse.devtunnels.ms/ws?username=${userName.value}`;
 const msgInput = ref<string>();
@@ -37,17 +36,18 @@ on("open", () => {
 });
 
 on("message", (data: any) => {
-  if (data.type === "ping") return;
+  if (data.type === "pong") return;
 
   console.log("webSocket消息：", data);
   try {
     historyMsg.value.push(data);
     console.log(historyMsg.value);
 
+    // 接收SDP(offer)
     if (data.type === "video-offer") {
       simulateIncomingCall(data.message_content);
     }
-
+    // 接收SDP(answer)
     if (data.type === "video-answer") {
       simulateAnswer(data.message_content);
     }
@@ -56,6 +56,17 @@ on("message", (data: any) => {
     if (data.type === "ice-candidate") {
       console.log("收到 ICE 候选", data.message_content);
       handleICECandidate(data.message_content);
+    }
+
+    // 接受结束通话
+    if (data.type === "endCall") {
+      endCall();
+    }
+
+    // 报错信息
+    if (data.type === "error") {
+      error.value = data.message_content;
+      endCall();
     }
   } catch (err) {
     console.log("webSocket消息报错:", err);
@@ -89,7 +100,6 @@ const {
   handleICECandidate,
   onIceCandidate, // 接收 ICE 候选回调
   endCall,
-  testRemoteVideo,
 } = useWebRTC();
 
 // 设置 ICE 候选回调
@@ -111,24 +121,16 @@ watchEffect(() => {
   if (localVideo.value && localStream.value) {
     localVideo.value.srcObject = localStream.value;
   }
-});
-watchEffect(() => {
+
   console.log("监听远程视频", remoteVideo.value, remoteStream.value);
   if (remoteVideo.value && remoteStream.value) {
     remoteVideo.value.srcObject = remoteStream.value;
   }
 });
+
 // 初始化本地媒体流
 onMounted(async () => {
   connect();
-  // try {
-  //   await initLocalStream();
-  //   if (localVideo.value && localStream.value) {
-  //     localVideo.value.srcObject = localStream.value;
-  //   }
-  // } catch (err) {
-  //   console.error("初始化失败:", err);
-  // }
 });
 
 const sendWebSocketMsg = (msg: any) => {
@@ -145,9 +147,7 @@ const sendWebSocketMsg = (msg: any) => {
 const initiateCall = async () => {
   try {
     await initLocalStream();
-    // if (localVideo.value && localStream.value) {
-    //   localVideo.value.srcObject = localStream.value;
-    // }
+
     const offer = await startCall();
     // 实际应用中：通过信令服务器发送offer
     console.log("发起呼叫，发送offer:", offer);
@@ -158,7 +158,8 @@ const initiateCall = async () => {
     };
     sendWebSocketMsg(msg);
   } catch (err) {
-    console.error("呼叫失败:", err);
+    console.error(`呼叫失败: 当前用户${(err as Error).message}`);
+    error.value = `呼叫失败: 当前用户${(err as Error).message}`;
   }
 };
 
@@ -181,6 +182,10 @@ const simulateIncomingCall = async (fakeOffer: any) => {
     sendWebSocketMsg(msg);
   } catch (err) {
     console.error("接受呼叫失败:", err);
+    sendWebSocketMsg({
+      type: "error",
+      message_content: `对方${(err as Error).message}`,
+    });
   }
 };
 
@@ -201,6 +206,13 @@ const simulateAnswer = async (fakeAnswer: any) => {
   }
 };
 
+// 结束通话
+const endWebRTCCall = () => {
+  endCall();
+
+  sendWebSocketMsg({ type: "endCall" });
+};
+
 const sendInputContent = () => {
   let msg = {
     type: "test",
@@ -217,11 +229,11 @@ const sendInputContent = () => {
     <h2 class="text-center text-xl">当前用户：{{ userName }}</h2>
     <div class="status-bar">
       <div class="status">
-        <span v-if="isCalling">
+        <div v-if="isCalling">
           {{ isCaller ? "呼叫中..." : "接听中..." }}
-        </span>
-        <span v-if="isConnectedWebRTC" class="connected">已连接</span>
-        <span v-if="error" class="error">{{ error }}</span>
+        </div>
+        <div v-if="isConnectedWebRTC" class="connected">已连接</div>
+        <div v-if="error" class="error">{{ error }}</div>
       </div>
     </div>
 
@@ -247,29 +259,8 @@ const sendInputContent = () => {
       <button @click="initiateCall" :disabled="isCalling" class="call-button">
         发起呼叫
       </button>
-
-      <button
-        @click="simulateIncomingCall"
-        :disabled="isCalling"
-        class="answer-button"
-      >
-        模拟来电
-      </button>
-
-      <button
-        @click="simulateAnswer"
-        :disabled="!isCalling || isCaller || isConnectedWebRTC"
-        class="answer-button"
-      >
-        模拟应答
-      </button>
-
-      <button @click="endCall" :disabled="!isCalling" class="end-button">
+      <button @click="endWebRTCCall" :disabled="!isCalling" class="end-button">
         结束通话
-      </button>
-
-      <button @click="testRemoteVideo" class="answer-button">
-        开启远程视频
       </button>
     </div>
 
@@ -278,7 +269,7 @@ const sendInputContent = () => {
       <button @click="sendInputContent" class="answer-button">发送消息</button>
     </div>
 
-    <div v-for="item of historyMsg">{{ item }}</div>
+    <div v-for="item of historyMsg" class="break-words">{{ item }}</div>
   </div>
 </template>
 
@@ -395,7 +386,7 @@ button:disabled {
 .end-button {
   background-color: #ff6b6b;
   color: white;
-  grid-column: span 2; /* 占据两列 */
+  /* grid-column: span 2;  */
 }
 
 .end-button:not(:disabled):hover {

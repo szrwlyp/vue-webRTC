@@ -28,22 +28,15 @@ export function useWebRTC() {
         video: true,
         audio: true,
       });
-
       localStream.value = stream;
       return stream;
     } catch (err) {
-      error.value = `无法访问摄像头/麦克风: ${(err as Error).message}`;
-      throw err;
+      // NotAllowedError：用户拒绝授权
+      // NotFoundError：无匹配设备
+      // OverconstrainedError：配置无法满足
+      // error.value = `无法访问摄像头/麦克风: ${(err as Error).message}`;
+      throw new Error("拒绝访问摄像头/麦克风");
     }
-  };
-
-  const testRemoteVideo = async () => {
-    // 获取新的媒体流
-    // const stream = await navigator.mediaDevices.getUserMedia({
-    //   video: true,
-    //   audio: true,
-    // });
-    // remoteStream.value = stream;
   };
 
   // 添加 iceCandidate 回调
@@ -97,12 +90,32 @@ export function useWebRTC() {
 
     // 监听连接状态变化
     pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === "connected") {
-        isConnected.value = true;
-      } else if (pc.iceConnectionState === "failed") {
-        error.value = "连接失败";
-      } else if (pc.iceConnectionState === "disconnected") {
-        error.value = "连接断开";
+      switch (pc.iceConnectionState) {
+        case "checking":
+          console.log("正在尝试建立连接...");
+          break;
+        case "connected":
+          console.log("连接已建立");
+          isConnected.value = true;
+          break;
+        case "completed":
+          console.log("ICE 协商完成");
+          break;
+        case "disconnected":
+          console.log("连接断开，正在尝试重新连接...");
+          error.value = "连接断开";
+          endCall(); //结束通话
+          break;
+        case "failed":
+          console.error("ICE 连接失败");
+          error.value = "连接失败";
+          // 可以尝试重启 ICE 或重新协商
+          break;
+        case "closed":
+          console.log("连接已关闭");
+          break;
+        default:
+          break;
       }
     };
 
@@ -158,6 +171,7 @@ export function useWebRTC() {
       // 返回Answer用于发送给呼叫方
       return answer;
     } catch (err) {
+      console.log(err);
       error.value = `接受呼叫失败: ${(err as Error).message}`;
       throw err;
     }
@@ -205,6 +219,11 @@ export function useWebRTC() {
       remoteStream.value = null;
     }
 
+    if (localStream.value) {
+      localStream.value.getTracks().forEach((track) => track.stop());
+      localStream.value = null;
+    }
+
     isCalling.value = false;
     isConnected.value = false;
     isCaller.value = false;
@@ -214,10 +233,10 @@ export function useWebRTC() {
   onUnmounted(() => {
     endCall();
 
-    if (localStream.value) {
-      localStream.value.getTracks().forEach((track) => track.stop());
-      localStream.value = null;
-    }
+    // if (localStream.value) {
+    //   localStream.value.getTracks().forEach((track) => track.stop());
+    //   localStream.value = null;
+    // }
   });
 
   return {
@@ -236,7 +255,6 @@ export function useWebRTC() {
     handleAnswer,
     handleICECandidate,
     endCall,
-    testRemoteVideo,
     onIceCandidate, // 暴露 ICE 候选回调
   };
 }
