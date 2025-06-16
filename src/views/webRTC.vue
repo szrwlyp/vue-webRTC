@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, watchEffect } from "vue";
+import { ref, onMounted, watchEffect, watch } from "vue";
 import { useWebRTC } from "@/composables/webRTC";
 import { useWebSocket } from "@/composables/webSocket";
 import { useRoute } from "vue-router";
 
 const route = useRoute();
-console.log(route.query.name);
 const userName = ref(route.query.name);
 
 // const wsUrl = `ws://127.0.0.1:8000/ws?username=${userName.value}`;
@@ -102,15 +101,27 @@ const {
   endCall,
 } = useWebRTC();
 
-// 设置 ICE 候选回调
-onIceCandidate.value = (candidate) => {
-  console.log("页面ICE 候选回调", candidate);
-  // 发送 ICE 候选给对端
-  sendWebSocketMsg({
-    type: "ice-candidate",
-    message_content: candidate,
-  });
-};
+// // 设置 ICE 候选回调
+// onIceCandidate.value = (candidate) => {
+//   console.log("页面ICE 候选回调", candidate);
+//   // 发送 ICE 候选给对端
+//   sendWebSocketMsg({
+//     type: "ice-candidate",
+//     message_content: candidate,
+//   });
+// };
+
+// 监听 ICE 候选回调
+watch(
+  () => onIceCandidate.value,
+  (newVal, oldVal) => {
+    // 发送 ICE 候选给对端
+    sendWebSocketMsg({
+      type: "ice-candidate",
+      message_content: newVal,
+    });
+  }
+);
 
 // 视频元素引用
 const localVideo = ref<HTMLVideoElement | null>(null);
@@ -229,7 +240,7 @@ const sendInputContent = () => {
     <h2 class="text-center text-xl">当前用户：{{ userName }}</h2>
     <div class="status-bar">
       <div class="status">
-        <div v-if="isCalling">
+        <div v-if="!isConnectedWebRTC && isCalling">
           {{ isCaller ? "呼叫中..." : "接听中..." }}
         </div>
         <div v-if="isConnectedWebRTC" class="connected">已连接</div>

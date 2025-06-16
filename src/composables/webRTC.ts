@@ -14,6 +14,10 @@ export function useWebRTC() {
   const isConnected = ref(false);
   const error = ref<string | null>(null);
 
+  // 添加 iceCandidate 回调
+  // const onIceCandidate = ref<(candidate: RTCIceCandidate) => void>();
+  const onIceCandidate = ref<RTCIceCandidate | null>(null);
+
   // 初始化本地媒体流
   const initLocalStream = async () => {
     try {
@@ -38,9 +42,6 @@ export function useWebRTC() {
       throw new Error("拒绝访问摄像头/麦克风");
     }
   };
-
-  // 添加 iceCandidate 回调
-  const onIceCandidate = ref<(candidate: RTCIceCandidate) => void>();
 
   // 创建对等连接
   const createPeerConnection = () => {
@@ -70,13 +71,7 @@ export function useWebRTC() {
     // 监听远程媒体流
     pc.ontrack = (event) => {
       console.log("监听远程媒体流", event);
-      // if (!remoteStream.value) {
-      console.log("asdfasdf");
       remoteStream.value = event.streams[0];
-      // }
-      // event.streams[0].getTracks().forEach((track) => {
-      //   remoteStream.value!.addTrack(track);
-      // });
     };
 
     // 监听ICE候选
@@ -84,7 +79,9 @@ export function useWebRTC() {
       if (event.candidate) {
         // 实际应用中应通过信令服务器发送候选
         console.log("ICE candidate:", event.candidate);
-        onIceCandidate.value(event.candidate);
+        // onIceCandidate.value(event.candidate);
+
+        onIceCandidate.value = event.candidate;
       }
     };
 
