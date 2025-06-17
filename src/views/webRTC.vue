@@ -114,7 +114,7 @@ const {
 // 监听 ICE 候选回调
 watch(
   () => onIceCandidate.value,
-  (newVal, oldVal) => {
+  (newVal) => {
     // 发送 ICE 候选给对端
     sendWebSocketMsg({
       type: "ice-candidate",
@@ -156,6 +156,12 @@ const sendWebSocketMsg = (msg: any) => {
 
 // 发起呼叫
 const initiateCall = async () => {
+  console.log(isConnected.value, "是否连接");
+  // 判断是否连接webSocket
+  if (!isConnected.value) {
+    error.value = "webSocket未成功连接";
+    return;
+  }
   try {
     await initLocalStream();
 
@@ -238,13 +244,17 @@ const sendInputContent = () => {
 <template>
   <div class="simple-webrtc">
     <h2 class="text-center text-xl">当前用户：{{ userName }}</h2>
-    <div class="status-bar">
+    <div
+      class="status-bar py-2.5 px-3.75 bg-[#e6f0ff] rounded-lg mb-5 text-center font-medium"
+    >
       <div class="status">
         <div v-if="!isConnectedWebRTC && isCalling">
           {{ isCaller ? "呼叫中..." : "接听中..." }}
         </div>
-        <div v-if="isConnectedWebRTC" class="connected">已连接</div>
-        <div v-if="error" class="error">{{ error }}</div>
+        <div v-if="isConnectedWebRTC" class="text-[#28a745] font-bold">
+          已连接
+        </div>
+        <div v-if="error" class="text-[#dc3545] font-bold">{{ error }}</div>
       </div>
     </div>
 
@@ -266,18 +276,28 @@ const sendInputContent = () => {
       </div>
     </div>
 
-    <div class="controls">
-      <button @click="initiateCall" :disabled="isCalling" class="call-button">
+    <div class="grid grid-cols-2 gap-[15px]">
+      <button
+        @click="initiateCall"
+        :disabled="isCalling"
+        class="bg-[#4a9dff] text-white"
+      >
         发起呼叫
       </button>
-      <button @click="endWebRTCCall" :disabled="!isCalling" class="end-button">
+      <button
+        @click="endWebRTCCall"
+        :disabled="!isCalling"
+        class="bg-[#ff6b6b] text-white"
+      >
         结束通话
       </button>
     </div>
 
-    <div>
+    <div class="group">
       <input type="text" id="msg" v-model="msgInput" />
-      <button @click="sendInputContent" class="answer-button">发送消息</button>
+      <button @click="sendInputContent" class="bg-[#6fcf97] text-white">
+        发送消息
+      </button>
     </div>
 
     <div v-for="item of historyMsg" class="break-words">{{ item }}</div>
@@ -295,69 +315,6 @@ const sendInputContent = () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.status-bar {
-  padding: 10px 15px;
-  background-color: #e6f0ff;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  text-align: center;
-  font-weight: 500;
-}
-
-.connected {
-  color: #28a745;
-  font-weight: bold;
-}
-
-.error {
-  color: #dc3545;
-  font-weight: bold;
-}
-
-.video-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 25px;
-}
-
-.video-wrapper {
-  position: relative;
-  background-color: #1a2b4d;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  aspect-ratio: 4/3;
-}
-
-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  background-color: #0d1a33;
-}
-
-.local-video {
-  transform: scaleX(-1); /* 镜像本地视频 */
-}
-
-.video-label {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  background-color: rgba(0, 0, 0, 0.6);
-  color: white;
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 0.9rem;
-}
-
-.controls {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
-}
-
 button {
   padding: 12px 15px;
   border: none;
@@ -372,36 +329,5 @@ button {
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-.call-button {
-  background-color: #4a9dff;
-  color: white;
-}
-
-.call-button:not(:disabled):hover {
-  background-color: #2a8cff;
-  transform: translateY(-2px);
-}
-
-.answer-button {
-  background-color: #6fcf97;
-  color: white;
-}
-
-.answer-button:not(:disabled):hover {
-  background-color: #4db57d;
-  transform: translateY(-2px);
-}
-
-.end-button {
-  background-color: #ff6b6b;
-  color: white;
-  /* grid-column: span 2;  */
-}
-
-.end-button:not(:disabled):hover {
-  background-color: #ff5252;
-  transform: translateY(-2px);
 }
 </style>

@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.tes1 {
+  @apply bg-gray-800/50 p-4 rounded-lg;
+}
+
+/* webRTC组件中本地、远程视频样式 */
+@layer components {
+  .video-container {
+    @apply grid grid-cols-2 gap-[20px] mb-[25px];
+  }
+
+  .video-wrapper {
+    @apply relative bg-[#1a2b4d] rounded-[10px] overflow-hidden shadow-md aspect-[4/3];
+  }
+
+  video {
+    @apply w-full h-full bg-[#0d1a33] object-cover;
+  }
+
+  .local-video {
+    @apply scale-x-[-1];
+  }
+
+  .video-label {
+    @apply absolute bottom-2.5 left-2.5 text-white bg-black/60 px-2.5 py-1 text-sm rounded;
+  }
+}
